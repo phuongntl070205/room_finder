@@ -19,9 +19,8 @@ class _RoommatePostPageState extends State<RoommatePostPage> {
   final _formKey = GlobalKey<FormState>();
   final _titleController = TextEditingController();
   final _descriptionController = TextEditingController();
-  final _budgetMinController = TextEditingController();
-  final _budgetMaxController = TextEditingController();
-  final _areaController = TextEditingController();
+  final _budgetController = TextEditingController();
+  final _habitInputController = TextEditingController();
 
   final StorageService _storageService = StorageService();
   final ImagePicker _picker = ImagePicker();
@@ -31,24 +30,19 @@ class _RoommatePostPageState extends State<RoommatePostPage> {
   List<String> _selectedHabits = [];
   List<String> _selectedAreas = [];
 
-  final List<String> _habitOptions = [
-    'Sạch sẽ', 'Yên tĩnh', 'Thân thiện', 'Học tập', 'Làm việc văn phòng',
-    'Thể thao', 'Âm nhạc', 'Đi chơi', 'Nấu ăn', 'Không hút thuốc'
-  ];
-
-  final List<String> _areaOptions = [
-    'Quận 1', 'Quận 3', 'Quận 7', 'Quận Bình Thạnh', 'Quận Tân Bình',
-    'Quận Phú Nhuận', 'Quận Gò Vấp', 'Quận Tân Phú', 'Quận Thủ Đức',
-    'Quận 9', 'Quận 12', 'Quận Bình Tân', 'Huyện Nhà Bè', 'Huyện Hóc Môn'
+  final List<String> _wardOptions = [
+    'Phường Tân Sơn Nhì', 'Phường Tây Thạnh', 'Phường Sơn Kỳ',
+    'Phường Tân Quý', 'Phường Tân Thành', 'Phường Phú Thọ Hòa',
+    'Phường Phú Thạnh', 'Phường Phú Trung', 'Phường Hòa Thạnh',
+    'Phường Hiệp Tân', 'Phường Tân Thới Hòa'
   ];
 
   @override
   void dispose() {
     _titleController.dispose();
     _descriptionController.dispose();
-    _budgetMinController.dispose();
-    _budgetMaxController.dispose();
-    _areaController.dispose();
+    _budgetController.dispose();
+    _habitInputController.dispose();
     super.dispose();
   }
 
@@ -63,7 +57,6 @@ class _RoommatePostPageState extends State<RoommatePostPage> {
 
   Future<void> _submitPost() async {
     if (!_formKey.currentState!.validate()) return;
-
     setState(() => _isLoading = true);
 
     try {
@@ -72,7 +65,6 @@ class _RoommatePostPageState extends State<RoommatePostPage> {
 
       final postRef = FirebaseFirestore.instance.collection('listings').doc();
       List<String> imageUrls = [];
-      
       if (_selectedImages.isNotEmpty) {
         imageUrls = await _storageService.uploadPostImages(postRef.id, _selectedImages);
       }
@@ -81,34 +73,24 @@ class _RoommatePostPageState extends State<RoommatePostPage> {
         id: postRef.id,
         authorId: user.uid,
         postType: PostType.roommateWanted,
-        title: _titleController.text.trim().isEmpty ? 'Tìm bạn ở ghép' : _titleController.text.trim(),
+        title: _titleController.text.trim(),
         description: _descriptionController.text.trim(),
-        price: double.tryParse(_budgetMaxController.text.replaceAll(',', '')) ?? 0,
+        price: double.tryParse(_budgetController.text.replaceAll(',', '')) ?? 0,
         status: ListingStatus.pending,
         location: const GeoPoint(0, 0),
-        address: _selectedAreas.isNotEmpty ? _selectedAreas.join(', ') : _areaController.text.trim(),
+        address: _selectedAreas.join(', '),
         mediaUrls: imageUrls,
         createdAt: DateTime.now(),
-        electricPrice: 0,
-        waterPrice: 0,
-        serviceFee: 0,
-        otherFee: 0,
+        electricPrice: 0, waterPrice: 0, serviceFee: 0, otherFee: 0,
       );
 
       await PostService().createPost(post);
-
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Đăng bài thành công!')),
-        );
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Đăng bài thành công!')));
         Navigator.of(context).pop();
       }
     } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Lỗi: $e')),
-        );
-      }
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Lỗi: $e')));
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }
@@ -117,19 +99,7 @@ class _RoommatePostPageState extends State<RoommatePostPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Tìm bạn ở ghép', style: TextStyle(fontWeight: FontWeight.bold)),
-        backgroundColor: Colors.white,
-        elevation: 0,
-        actions: [
-          TextButton(
-            onPressed: _isLoading ? null : _submitPost,
-            child: _isLoading
-                ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2))
-                : const Text('Đăng', style: TextStyle(color: Colors.blue, fontWeight: FontWeight.bold)),
-          ),
-        ],
-      ),
+      appBar: AppBar(title: const Text('Tìm bạn ở ghép', style: TextStyle(fontWeight: FontWeight.bold))),
       body: Form(
         key: _formKey,
         child: SingleChildScrollView(
@@ -137,154 +107,111 @@ class _RoommatePostPageState extends State<RoommatePostPage> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Text('Hình ảnh thực tế', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+              // 1. Hình ảnh thực tế
+              const Text('Hình ảnh thực tế', style: TextStyle(fontWeight: FontWeight.bold)),
               const SizedBox(height: 10),
               _buildImagePicker(),
-              const SizedBox(height: 24),
-              const Text('Tiêu đề', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+              const SizedBox(height: 20),
+
+              // 2. Tiêu đề
+              const Text('Tiêu đề', style: TextStyle(fontWeight: FontWeight.bold)),
               const SizedBox(height: 8),
               TextFormField(
                 controller: _titleController,
-                decoration: const InputDecoration(
-                  hintText: 'Ví dụ: Tìm bạn ở ghép quận 7',
-                  border: OutlineInputBorder(),
-                ),
-                validator: (value) => value?.isEmpty ?? true ? 'Vui lòng nhập tiêu đề' : null,
+                decoration: const InputDecoration(hintText: 'Ví dụ: Tìm bạn ở ghép Lê Trọng Tấn', border: OutlineInputBorder()),
+                validator: (v) => v!.isEmpty ? 'Nhập tiêu đề' : null,
               ),
-              const SizedBox(height: 20),
+              const SizedBox(height: 16),
 
-              const Text('Mô tả chi tiết', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+              // 3. Mô tả
+              const Text('Mô tả chi tiết', style: TextStyle(fontWeight: FontWeight.bold)),
               const SizedBox(height: 8),
               TextFormField(
                 controller: _descriptionController,
                 maxLines: 4,
-                decoration: const InputDecoration(
-                  hintText: 'Mô tả về bản thân, sở thích, yêu cầu với bạn ở ghép...',
-                  border: OutlineInputBorder(),
-                ),
-                validator: (value) => value?.isEmpty ?? true ? 'Vui lòng nhập mô tả' : null,
+                decoration: const InputDecoration(hintText: 'Yêu cầu về người ở ghép...', border: OutlineInputBorder()),
+                validator: (v) => v!.isEmpty ? 'Nhập mô tả' : null,
               ),
-              const SizedBox(height: 20),
+              const SizedBox(height: 16),
 
-              const Text('Ngân sách (VNĐ)', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+              // 4. Ngân sách
+              const Text('Ngân sách bạn cần có (VNĐ)', style: TextStyle(fontWeight: FontWeight.bold)),
               const SizedBox(height: 8),
+              TextFormField(
+                controller: _budgetController,
+                keyboardType: TextInputType.number,
+                decoration: const InputDecoration(hintText: 'Nhập số tiền', border: OutlineInputBorder(), suffixText: ''),
+                validator: (value) {
+                  if (value == null || value.isEmpty) {
+                    return 'Vui lòng nhập ngân sách';
+                  }
+                  // Loại bỏ dấu phẩy để lấy số thực
+                  final amount = double.tryParse(value.replaceAll(',', ''));
+                  if (amount == null) {
+                    return 'Giá trị không hợp lệ';
+                  }
+                  // Kiểm tra điều kiện tối thiểu 1 triệu
+                  if (amount < 1000000) {
+                    return 'Ngân sách tối thiểu phải là 1,000,000 VNĐ';
+                  }
+                  return null;
+                },
+                onChanged: (v) {
+                  final formatted = _formatCurrency(v);
+                  if (formatted != v) {
+                    _budgetController.value = TextEditingValue(text: formatted, selection: TextSelection.collapsed(offset: formatted.length));
+                  }
+                },
+              ),
+              const SizedBox(height: 16),
+
+              // 5. Phường tại Tân Phú
+              const Text('Phường tại Tân Phú', style: TextStyle(fontWeight: FontWeight.bold)),
+              const SizedBox(height: 8),
+              Wrap(
+                spacing: 8,
+                children: _wardOptions.map((ward) => FilterChip(
+                  label: Text(ward),
+                  selected: _selectedAreas.contains(ward),
+                  onSelected: (s) => setState(() => s ? _selectedAreas.add(ward) : _selectedAreas.remove(ward)),
+                )).toList(),
+              ),
+              const SizedBox(height: 16),
+
+              // 6. Sở thích
+              const Text('Sở thích ở ghép', style: TextStyle(fontWeight: FontWeight.bold)),
               Row(
                 children: [
                   Expanded(
-                    child: TextFormField(
-                      controller: _budgetMinController,
-                      keyboardType: TextInputType.number,
-                      autovalidateMode: AutovalidateMode.onUserInteraction,
-                      decoration: const InputDecoration(
-                        hintText: 'Từ',
-                        suffixText: 'đ',
-                        border: OutlineInputBorder(),
-                      ),
-                      onChanged: (value) {
-                        final formatted = _formatCurrency(value);
-                        if (formatted != value) {
-                          _budgetMinController.value = TextEditingValue(
-                            text: formatted,
-                            selection: TextSelection.collapsed(offset: formatted.length),
-                          );
-                        }
-                      },
-                      validator: (v) {
-                        if (v != null && v.isNotEmpty) {
-                          final num = double.tryParse(v.replaceAll(',', ''));
-                          if (num == null) return 'Lỗi';
-                          if (num < 0) return 'Không được âm';
-                          
-                          final maxStr = _budgetMaxController.text.replaceAll(',', '');
-                          if (maxStr.isNotEmpty) {
-                            final maxNum = double.tryParse(maxStr);
-                            if (maxNum != null && num > maxNum) {
-                              return 'Phải nhỏ hơn Đến';
-                            }
-                          }
-                        }
-                        return null;
-                      },
+                    child: TextField(
+                      controller: _habitInputController,
+                      decoration: const InputDecoration(hintText: 'Nhập sở thích...'),
                     ),
                   ),
-                  const SizedBox(width: 16),
-                  Expanded(
-                    child: TextFormField(
-                      controller: _budgetMaxController,
-                      keyboardType: TextInputType.number,
-                      autovalidateMode: AutovalidateMode.onUserInteraction,
-                      decoration: const InputDecoration(
-                        hintText: 'Đến',
-                        suffixText: 'đ',
-                        border: OutlineInputBorder(),
-                      ),
-                      onChanged: (value) {
-                        final formatted = _formatCurrency(value);
-                        if (formatted != value) {
-                          _budgetMaxController.value = TextEditingValue(
-                            text: formatted,
-                            selection: TextSelection.collapsed(offset: formatted.length),
-                          );
-                        }
-                      },
-                      validator: (v) {
-                        if (v == null || v.isEmpty) return 'Nhập giá';
-                        final num = double.tryParse(v.replaceAll(',', ''));
-                        if (num == null) return 'Lỗi';
-                        if (num < 0) return 'Không được âm';
-
-                        final minStr = _budgetMinController.text.replaceAll(',', '');
-                        if (minStr.isNotEmpty) {
-                          final minNum = double.tryParse(minStr);
-                          if (minNum != null && num < minNum) {
-                            return 'Phải lớn hơn Từ';
-                          }
-                        }
-                        return null;
-                      },
-                    ),
-                  ),
+                  IconButton(icon: const Icon(Icons.add), onPressed: () {
+                    if (_habitInputController.text.isNotEmpty) {
+                      setState(() {
+                        _selectedHabits.add(_habitInputController.text.trim());
+                        _habitInputController.clear();
+                      });
+                    }
+                  }),
                 ],
               ),
-              const SizedBox(height: 20),
-
-              const Text('Khu vực mong muốn', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
-              const SizedBox(height: 8),
               Wrap(
                 spacing: 8,
-                children: _areaOptions.map((area) => FilterChip(
-                  label: Text(area),
-                  selected: _selectedAreas.contains(area),
-                  onSelected: (selected) {
-                    setState(() {
-                      if (selected) {
-                        _selectedAreas.add(area);
-                      } else {
-                        _selectedAreas.remove(area);
-                      }
-                    });
-                  },
-                )).toList(),
+                children: _selectedHabits.map((h) => Chip(label: Text(h), onDeleted: () => setState(() => _selectedHabits.remove(h)))).toList(),
               ),
-              const SizedBox(height: 20),
+              const SizedBox(height: 30),
 
-              const Text('Sở thích & Phong cách sống', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
-              const SizedBox(height: 8),
-              Wrap(
-                spacing: 8,
-                children: _habitOptions.map((habit) => FilterChip(
-                  label: Text(habit),
-                  selected: _selectedHabits.contains(habit),
-                  onSelected: (selected) {
-                    setState(() {
-                      if (selected) {
-                        _selectedHabits.add(habit);
-                      } else {
-                        _selectedHabits.remove(habit);
-                      }
-                    });
-                  },
-                )).toList(),
+              // 7. Nút đăng bài
+              SizedBox(
+                width: double.infinity,
+                height: 50,
+                child: ElevatedButton(
+                  onPressed: _isLoading ? null : _submitPost,
+                  child: _isLoading ? const CircularProgressIndicator(color: Colors.white) : const Text('ĐĂNG BÀI'),
+                ),
               ),
             ],
           ),
@@ -293,14 +220,7 @@ class _RoommatePostPageState extends State<RoommatePostPage> {
     );
   }
 
-  String _formatCurrency(String value) {
-    final cleanValue = value.replaceAll(',', '');
-    if (cleanValue.isEmpty) return '';
-    final number = int.tryParse(cleanValue);
-    if (number == null) return value;
-    return NumberFormat('#,###').format(number);
-  }
-
+  // Khung chọn ảnh
   Widget _buildImagePicker() {
     return SizedBox(
       height: 100,
@@ -313,40 +233,26 @@ class _RoommatePostPageState extends State<RoommatePostPage> {
               onTap: _pickImages,
               child: Container(
                 width: 100,
-                decoration: BoxDecoration(
-                  color: Colors.grey[100],
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: Colors.grey[300]!),
-                ),
+                decoration: BoxDecoration(color: Colors.grey[100], borderRadius: BorderRadius.circular(12), border: Border.all(color: Colors.grey[300]!)),
                 child: const Icon(Icons.add_a_photo_outlined, color: Colors.grey, size: 30),
               ),
             );
           }
           return Padding(
             padding: const EdgeInsets.only(right: 8.0),
-            child: Stack(
-              children: [
-                ClipRRect(
-                  borderRadius: BorderRadius.circular(12),
-                  child: Image.file(_selectedImages[index], width: 100, height: 100, fit: BoxFit.cover),
-                ),
-                Positioned(
-                  right: 4,
-                  top: 4,
-                  child: GestureDetector(
-                    onTap: () => setState(() => _selectedImages.removeAt(index)),
-                    child: Container(
-                      padding: const EdgeInsets.all(4),
-                      decoration: const BoxDecoration(color: Colors.black54, shape: BoxShape.circle),
-                      child: const Icon(Icons.close, size: 16, color: Colors.white),
-                    ),
-                  ),
-                ),
-              ],
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(12),
+              child: Image.file(_selectedImages[index], width: 100, height: 100, fit: BoxFit.cover),
             ),
           );
         },
       ),
     );
+  }
+
+  String _formatCurrency(String value) {
+    final clean = value.replaceAll(',', '');
+    if (clean.isEmpty) return '';
+    return NumberFormat('#,###').format(int.tryParse(clean) ?? 0);
   }
 }
