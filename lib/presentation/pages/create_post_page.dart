@@ -66,7 +66,7 @@ class _CreatePostPageState extends State<CreatePostPage> {
     final total = _selectedImages.length + images.length;
     if (total > ImageModerationService.maxImages) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Chi duoc chon toi da 10 anh.')),
+        const SnackBar(content: Text('Chỉ được chọn tối đa 10 ảnh.')),
       );
       return;
     }
@@ -145,7 +145,7 @@ class _CreatePostPageState extends State<CreatePostPage> {
     if (!_formKey.currentState!.validate()) return;
     if (_selectedImages.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Can it nhat 1 anh cho bai dang.')),
+        const SnackBar(content: Text('Cần ít nhất 1 ảnh cho bài đăng.')),
       );
       return;
     }
@@ -156,7 +156,7 @@ class _CreatePostPageState extends State<CreatePostPage> {
       final user = FirebaseAuth.instance.currentUser;
       if (user == null) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Ban can dang nhap de dang bai.')),
+          const SnackBar(content: Text('Bạn cần đăng nhập để đăng bài.')),
         );
         return;
       }
@@ -166,7 +166,7 @@ class _CreatePostPageState extends State<CreatePostPage> {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
-              content: Text('Vui long chon vi tri hoac nhap dia chi hop le.'),
+              content: Text('Vui lòng chọn vị trí hoặc nhập địa chỉ hợp lệ.'),
             ),
           );
         }
@@ -186,7 +186,7 @@ class _CreatePostPageState extends State<CreatePostPage> {
             SnackBar(
               content: Text(
                 textResult.message.isEmpty
-                    ? 'Noi dung co chua tu ngu nhay cam. Vui long chinh sua lai.'
+                    ? 'Nội dung có chứa từ ngữ nhạy cảm. Vui lòng chỉnh sửa lại.'
                     : textResult.message,
               ),
             ),
@@ -203,7 +203,7 @@ class _CreatePostPageState extends State<CreatePostPage> {
             SnackBar(
               content: Text(
                 imageResult.message.isEmpty
-                    ? 'Anh khong hop le. Vui long tai anh khac.'
+                    ? 'Ảnh không hợp lệ. Vui lòng tải ảnh khác.'
                     : imageResult.message,
               ),
             ),
@@ -217,7 +217,7 @@ class _CreatePostPageState extends State<CreatePostPage> {
       _addressComponents = resolvedAddress.components;
 
       final approvedResult = ModerationResult.passed(
-        message: 'Bai dang da duoc kiem duyet va dang cong khai.',
+        message: 'Bài đăng đã được kiểm duyệt và đăng công khai.',
         details: {
           'checkedBy': 'gemini_api',
           'textResult': textResult.toMap(),
@@ -237,14 +237,14 @@ class _CreatePostPageState extends State<CreatePostPage> {
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Dang bai thanh cong!')),
+          const SnackBar(content: Text('Đăng bài thành công!')),
         );
         Navigator.pop(context);
       }
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Khong the dang bai: $e')),
+          SnackBar(content: Text('Không thể đăng bài: $e')),
         );
       }
     } finally {
@@ -290,7 +290,7 @@ class _CreatePostPageState extends State<CreatePostPage> {
                         keyboardType: TextInputType.number,
                         minValue: 1000000,
                         minValueMessage:
-                            'Gia phong toi thieu la 1,000,000 VND'),
+                            'Giá phòng tối thiểu là 1.000.000 VND'),
                     const SizedBox(height: 12),
                     _buildTextField(_addressController, 'Địa chỉ',
                         icon: Icons.location_on, maxLines: 2),
@@ -395,7 +395,7 @@ class _CreatePostPageState extends State<CreatePostPage> {
           final number = double.tryParse(value.replaceAll(',', ''));
           if (number == null) return 'Vui lòng nhập số hợp lệ';
           if (minValue != null && number < minValue) {
-            return minValueMessage ?? 'Gia tri khong hop le';
+            return minValueMessage ?? 'Giá trị không hợp lệ';
           }
           if (number < 0) return 'Không được nhập số âm';
         }

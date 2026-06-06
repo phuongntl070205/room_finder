@@ -282,7 +282,9 @@ class _ExplorePageState extends State<ExplorePage>
             final currentUserModel = UserModel.fromMap(
                 currentSnap.data!.data() as Map<String, dynamic>,
                 _currentUser!.uid);
-            final otherUsers = snapshot.data!.where((u) {
+            // Filter by search query, then compute match percentage,
+            // sort by score descending and limit to top 10 results.
+            final filtered = snapshot.data!.where((u) {
               if (_searchQuery.isEmpty) return true;
               final searchableText = [
                 u.displayName,
@@ -292,13 +294,26 @@ class _ExplorePageState extends State<ExplorePage>
               return searchableText.contains(_searchQuery);
             }).toList();
 
+            final scored = filtered
+                .map((u) => MapEntry(u,
+                    _userService.calculateMatchPercentage(currentUserModel, u)))
+                .toList();
+
+            scored.sort((a, b) => b.value.compareTo(a.value));
+
+            // limit to top 10
+            final top = scored.take(10).toList();
+
+            if (top.isEmpty) {
+              return const Center(child: Text('Không tìm thấy người phù hợp.'));
+            }
+
             return ListView.builder(
               padding: const EdgeInsets.all(16),
-              itemCount: otherUsers.length,
+              itemCount: top.length,
               itemBuilder: (context, index) {
-                final otherUser = otherUsers[index];
-                final matchPercent = _userService.calculateMatchPercentage(
-                    currentUserModel, otherUser);
+                final otherUser = top[index].key;
+                final matchPercent = top[index].value;
                 return RoommateCard(
                   user: otherUser,
                   matchPercentage: matchPercent,

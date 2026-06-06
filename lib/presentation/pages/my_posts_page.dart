@@ -14,12 +14,12 @@ class MyPostsPage extends StatelessWidget {
     return Scaffold(
       appBar: AppBar(
         title: const Text(
-          'Bai dang cua toi',
+          'Bài đăng của tôi',
           style: TextStyle(fontWeight: FontWeight.bold),
         ),
       ),
-      body: currentUser == null
-          ? const Center(child: Text('Vui long dang nhap'))
+        body: currentUser == null
+          ? const Center(child: Text('Vui lòng đăng nhập'))
           : _buildPostList(currentUser.uid),
     );
   }
@@ -43,7 +43,7 @@ class MyPostsPage extends StatelessWidget {
                 Icon(Icons.post_add, size: 64, color: Colors.grey[300]),
                 const SizedBox(height: 16),
                 Text(
-                  'Khong co bai dang nao',
+                  'Không có bài đăng nào',
                   style: TextStyle(color: Colors.grey[600]),
                 ),
               ],

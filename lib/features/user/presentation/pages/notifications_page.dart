@@ -103,7 +103,7 @@ class NotificationsPage extends StatelessWidget {
         orElse: () => '',
       );
 
-      var otherUserName = 'Nguoi dung';
+      var otherUserName = 'Người dùng';
       if (otherUserId.isNotEmpty) {
         final userDoc = await FirebaseFirestore.instance
             .collection('users')

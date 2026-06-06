@@ -12,7 +12,7 @@ class ModerationResult {
   });
 
   factory ModerationResult.passed({
-    String message = 'Noi dung hop le.',
+    String message = 'Nội dung hợp lệ.',
     Map<String, dynamic> details = const {},
   }) {
     return ModerationResult(

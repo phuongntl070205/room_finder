@@ -107,7 +107,7 @@ class _EditPostPageState extends State<EditPostPage> {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text(
-            'Chi duoc chon toi da ${ImageModerationService.maxImages} anh.',
+            'Chỉ được chọn tối đa ${ImageModerationService.maxImages} ảnh.',
           ),
         ),
       );
@@ -132,7 +132,7 @@ class _EditPostPageState extends State<EditPostPage> {
       if (resolvedAddress == null) {
         if (!mounted) return;
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Khong the xac dinh dia chi nay.')),
+          const SnackBar(content: Text('Không thể xác định địa chỉ này.')),
         );
         return;
       }
@@ -145,14 +145,14 @@ class _EditPostPageState extends State<EditPostPage> {
       if (!textResult.passed) {
         _showModerationMessage(
           textResult,
-          fallback: 'Noi dung co chua tu ngu nhay cam. Vui long chinh sua lai.',
+          fallback: 'Nội dung có chứa từ ngữ nhạy cảm. Vui lòng chỉnh sửa lại.',
         );
         return;
       }
 
       var imageUrls = List<String>.from(_currentImageUrls);
       var imageResult = ModerationResult.passed(
-        message: 'Khong thay doi anh bai dang.',
+        message: 'Không thay đổi ảnh bài đăng.',
         details: const {'source': 'existing_images'},
       );
       if (_selectedImages.isNotEmpty) {
@@ -161,7 +161,7 @@ class _EditPostPageState extends State<EditPostPage> {
         if (!imageResult.passed) {
           _showModerationMessage(
             imageResult,
-            fallback: 'Anh khong hop le. Vui long tai anh khac.',
+            fallback: 'Ảnh không hợp lệ. Vui lòng tải ảnh khác.',
           );
           return;
         }
@@ -174,7 +174,7 @@ class _EditPostPageState extends State<EditPostPage> {
       if (widget.post.postType == PostType.roomForRent && imageUrls.isEmpty) {
         if (!mounted) return;
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Can it nhat 1 anh cho bai dang.')),
+          const SnackBar(content: Text('Cần ít nhất 1 ảnh cho bài đăng.')),
         );
         return;
       }
@@ -183,7 +183,7 @@ class _EditPostPageState extends State<EditPostPage> {
       _addressComponents = resolvedAddress.components;
 
       final approvedResult = ModerationResult.passed(
-        message: 'Bai dang da duoc kiem duyet va cap nhat cong khai.',
+        message: 'Bài đăng đã được kiểm duyệt và cập nhật công khai.',
         details: {
           'checkedBy': 'gemini_api',
           'textResult': textResult.toMap(),
@@ -216,13 +216,13 @@ class _EditPostPageState extends State<EditPostPage> {
 
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Da cap nhat bai viet.')),
+        const SnackBar(content: Text('Đã cập nhật bài viết.')),
       );
       Navigator.pop(context);
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Khong the cap nhat: $e')),
+        SnackBar(content: Text('Không thể cập nhật: $e')),
       );
     } finally {
       if (mounted) setState(() => _isSaving = false);
@@ -245,18 +245,18 @@ class _EditPostPageState extends State<EditPostPage> {
 
   String? _requiredText(String? value) {
     if (value == null || value.trim().isEmpty) {
-      return 'Khong duoc de trong';
+      return 'Không được để trống';
     }
     return null;
   }
 
   String? _validPositiveNumber(String? value) {
     if (value == null || value.trim().isEmpty) {
-      return 'Khong duoc de trong';
+      return 'Không được để trống';
     }
     final number = double.tryParse(value.replaceAll(',', '').trim());
-    if (number == null) return 'Vui long nhap so hop le';
-    if (number <= 0) return 'Phai lon hon 0';
+    if (number == null) return 'Vui lòng nhập số hợp lệ';
+    if (number <= 0) return 'Phải lớn hơn 0';
     return null;
   }
 
@@ -266,7 +266,7 @@ class _EditPostPageState extends State<EditPostPage> {
 
     final number = double.parse(value!.replaceAll(',', '').trim());
     if (number < 1000000) {
-      return 'Gia phong toi thieu la 1,000,000 VND';
+      return 'Giá phòng tối thiểu là 1.000.000 VND';
     }
     return null;
   }
@@ -275,8 +275,8 @@ class _EditPostPageState extends State<EditPostPage> {
     final text = value?.trim() ?? '';
     if (text.isEmpty) return null;
     final number = double.tryParse(text.replaceAll(',', ''));
-    if (number == null) return 'Vui long nhap so hop le';
-    if (number < 0) return 'Khong duoc nhap so am';
+    if (number == null) return 'Vui lòng nhập số hợp lệ';
+    if (number < 0) return 'Không được nhập số âm';
     return null;
   }
 
@@ -285,7 +285,7 @@ class _EditPostPageState extends State<EditPostPage> {
     return Scaffold(
       appBar: AppBar(
         title: const Text(
-          'Chinh sua bai viet',
+          'Chỉnh sửa bài viết',
           style: TextStyle(fontWeight: FontWeight.bold),
         ),
         actions: [
@@ -297,7 +297,7 @@ class _EditPostPageState extends State<EditPostPage> {
                     height: 18,
                     child: CircularProgressIndicator(strokeWidth: 2),
                   )
-                : const Text('Luu'),
+                : const Text('Lưu'),
           ),
         ],
       ),
@@ -310,20 +310,20 @@ class _EditPostPageState extends State<EditPostPage> {
             children: [
               _buildTextField(
                 _titleController,
-                'Tieu de',
+                'Tiêu đề',
                 validator: _requiredText,
               ),
               const SizedBox(height: 12),
               _buildTextField(
                 _descriptionController,
-                'Mo ta',
+                'Mô tả',
                 maxLines: 4,
                 validator: _requiredText,
               ),
               const SizedBox(height: 12),
               _buildTextField(
                 _priceController,
-                'Gia thue / thang',
+                'Giá thuê / tháng',
                 keyboardType: TextInputType.number,
                 validator: widget.post.postType == PostType.roomForRent
                     ? _validRoomPrice
@@ -332,7 +332,7 @@ class _EditPostPageState extends State<EditPostPage> {
               const SizedBox(height: 12),
               _buildTextField(
                 _addressController,
-                'Dia chi',
+                'Địa chỉ',
                 maxLines: 2,
                 validator: _requiredText,
               ),
@@ -340,18 +340,18 @@ class _EditPostPageState extends State<EditPostPage> {
               OutlinedButton.icon(
                 onPressed: _pickLocation,
                 icon: const Icon(Icons.map_outlined),
-                label: const Text('Chon lai vi tri tren ban do'),
+                label: const Text('Chọn lại vị trí trên bản đồ'),
               ),
               const SizedBox(height: 20),
               const Text(
-                'Hinh anh',
+                'Hình ảnh',
                 style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
               ),
               const SizedBox(height: 8),
               _buildImagePicker(),
               const SizedBox(height: 20),
               const Text(
-                'Chi phi',
+                'Chi phí',
                 style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
               ),
               const SizedBox(height: 12),
@@ -360,7 +360,7 @@ class _EditPostPageState extends State<EditPostPage> {
                   Expanded(
                     child: _buildTextField(
                       _electricPriceController,
-                      'Dien/kWh',
+                      'Điện/kWh',
                       keyboardType: TextInputType.number,
                       validator: _validOptionalNumber,
                     ),
@@ -369,7 +369,7 @@ class _EditPostPageState extends State<EditPostPage> {
                   Expanded(
                     child: _buildTextField(
                       _waterPriceController,
-                      'Nuoc/m3',
+                      'Nước/m3',
                       keyboardType: TextInputType.number,
                       validator: _validOptionalNumber,
                     ),
@@ -382,7 +382,7 @@ class _EditPostPageState extends State<EditPostPage> {
                   Expanded(
                     child: _buildTextField(
                       _serviceFeeController,
-                      'Phi dich vu',
+                      'Phí dịch vụ',
                       keyboardType: TextInputType.number,
                       validator: _validOptionalNumber,
                     ),
@@ -391,7 +391,7 @@ class _EditPostPageState extends State<EditPostPage> {
                   Expanded(
                     child: _buildTextField(
                       _otherFeeController,
-                      'Phi khac',
+                      'Phí khác',
                       keyboardType: TextInputType.number,
                       validator: _validOptionalNumber,
                     ),

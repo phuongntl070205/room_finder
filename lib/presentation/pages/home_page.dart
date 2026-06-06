@@ -236,7 +236,7 @@ class _RecommendationSection extends StatelessWidget {
     final subtitle = isLoadingLocation
         ? 'Đang lấy vị trí để tính khoảng cách...'
         : hasLocation
-            ? 'S = 0.6 x giá ước tính + 0.4 x khoảng cách'
+            ? 'Gọi ý dựa trên giá ước tính + và khoảng cách'
             : 'Chưa có vị trí, tạm ưu tiên theo giá ước tính';
 
     return Column(

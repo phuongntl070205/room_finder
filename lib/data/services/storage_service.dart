@@ -24,7 +24,7 @@ class StorageService {
         final downloadUrl = await snapshot.ref.getDownloadURL();
         imageUrls.add(downloadUrl);
       } catch (e) {
-        throw Exception('Khong the upload anh ${i + 1}: $e');
+        throw Exception('Không thể tải ảnh ${i + 1}: $e');
       }
     }
 

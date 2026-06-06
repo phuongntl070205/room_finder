@@ -36,16 +36,16 @@ class ImageModerationService {
   Future<ModerationResult> moderateImages(List<File> images) async {
     if (images.isEmpty) {
       return ModerationResult.rejected(
-        violations: const ['Can it nhat 1 anh cho bai dang.'],
-        message: 'Can it nhat 1 anh cho bai dang.',
+        violations: const ['Cần ít nhất 1 ảnh cho bài đăng.'],
+        message: 'Cần ít nhất 1 ảnh cho bài đăng.',
         details: {'source': 'client_validation'},
       );
     }
 
     if (images.length > maxImages) {
       return ModerationResult.rejected(
-        violations: const ['Chi duoc chon toi da 10 anh.'],
-        message: 'Chi duoc chon toi da 10 anh cho moi bai dang.',
+        violations: const ['Chỉ được chọn tối đa 10 ảnh.'],
+        message: 'Chỉ được chọn tối đa 10 ảnh cho mỗi bài đăng.',
         details: {'source': 'client_validation', 'maxImages': maxImages},
       );
     }
@@ -60,7 +60,7 @@ class ImageModerationService {
 
       if (!allowedExtensions.contains(extension)) {
         violations.add(
-          'Anh ${i + 1} ($fileName) khong dung dinh dang jpg, jpeg, png hoac webp.',
+          'Ảnh ${i + 1} ($fileName) không đúng định dạng jpg, jpeg, png hoặc webp.',
         );
         continue;
       }
@@ -68,7 +68,7 @@ class ImageModerationService {
       final size = await file.length();
       if (size > maxImageBytes) {
         violations.add(
-          'Anh ${i + 1} ($fileName) vuot qua dung luong 5MB.',
+          'Ảnh ${i + 1} ($fileName) vượt quá dung lượng 5MB.',
         );
         continue;
       }
@@ -80,7 +80,7 @@ class ImageModerationService {
       final confidence = (result['confidence'] as num?)?.toDouble() ?? 0;
       if (!_isValidRoomLabel(label) || confidence < minRoomConfidence) {
         violations.add(
-          'Anh ${i + 1} ($fileName) khong phai anh phong tro hop le. Vui long tai anh phong/khong gian thuc te.',
+          'Ảnh ${i + 1} ($fileName) không phải ảnh phòng trọ hợp lệ. Vui lòng tải ảnh phòng/không gian thực tế.',
         );
       }
     }
@@ -88,7 +88,7 @@ class ImageModerationService {
     if (violations.isNotEmpty) {
       return ModerationResult.rejected(
         violations: violations,
-        message: 'Mot so anh khong dat yeu cau kiem duyet.',
+        message: 'Một số ảnh không đạt yêu cầu kiểm duyệt.',
         details: {
           'source': 'local_room_filter_model',
           'imageResults': moderationDetails,
@@ -97,7 +97,7 @@ class ImageModerationService {
     }
 
     return ModerationResult.passed(
-      message: 'Tat ca anh hop le.',
+      message: 'Tất cả ảnh hợp lệ.',
       details: {
         'source': 'local_room_filter_model',
         'imageResults': moderationDetails,

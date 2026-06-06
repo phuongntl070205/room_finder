@@ -16,9 +16,9 @@ class TextModerationService {
     required String address,
   }) {
     final text = [
-      'Tieu de: $title',
-      'Mo ta: $description',
-      'Dia chi: $address',
+      'Tiêu đề: $title',
+      'Mô tả: $description',
+      'Địa chỉ: $address',
     ].join('\n');
     return moderateText(text, context: 'listing');
   }
@@ -34,8 +34,8 @@ class TextModerationService {
     final normalized = text.trim();
     if (normalized.isEmpty) {
       return ModerationResult.rejected(
-        violations: const ['Noi dung khong duoc de trong.'],
-        message: 'Noi dung khong duoc de trong.',
+        violations: const ['Nội dung không được để trống.'],
+        message: 'Nội dung không được để trống.',
         details: {'context': context, 'source': 'client_validation'},
       );
     }

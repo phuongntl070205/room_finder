@@ -43,15 +43,18 @@ class _PostDetailPageState extends State<PostDetailPage> {
     }
 
     try {
+      // capture the current saved state to avoid race with snapshot updates
+      final wasSaved = _isSaved;
       await _postService.toggleSavePost(
-          currentUser.uid, widget.post.id, _isSaved);
+          currentUser.uid, widget.post.id, wasSaved);
       if (!mounted) return;
+      final newSaved = !wasSaved;
       setState(() {
-        _isSaved = !_isSaved;
+        _isSaved = newSaved;
       });
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-            content: Text(_isSaved ? 'Đã lưu bài đăng' : 'Đã bỏ lưu bài đăng')),
+            content: Text(newSaved ? 'Đã lưu bài đăng' : 'Đã bỏ lưu bài đăng')),
       );
     } catch (e) {
       if (!mounted) return;

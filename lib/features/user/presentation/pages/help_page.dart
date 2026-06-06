@@ -32,9 +32,9 @@ class HelpPage extends StatelessWidget {
           ),
           _HelpItem(
             icon: Icons.verified_outlined,
-            title: 'Tu kiem duyet',
+            title: 'Tự kiểm duyệt',
             body:
-                'Bai dang moi se duoc he thong tu kiem duyet. Neu hop le, bai se hien thi cong khai ngay.',
+                'Bài đăng mới sẽ được hệ thống tự kiểm duyệt. Nếu hợp lệ, bài sẽ hiển thị công khai ngay.',
           ),
         ],
       ),

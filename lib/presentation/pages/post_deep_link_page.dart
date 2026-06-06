@@ -23,12 +23,12 @@ class PostDeepLinkPage extends StatelessWidget {
 
         if (snapshot.hasError || !snapshot.hasData || !snapshot.data!.exists) {
           return Scaffold(
-            appBar: AppBar(title: const Text('Bai viet')),
+            appBar: AppBar(title: const Text('Bài viết')),
             body: const Center(
               child: Padding(
                 padding: EdgeInsets.all(24),
                 child: Text(
-                  'Bai viet nay khong ton tai hoac da bi xoa.',
+                  'Bài viết này không tồn tại hoặc đã bị xóa.',
                   textAlign: TextAlign.center,
                 ),
               ),

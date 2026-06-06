@@ -39,17 +39,17 @@ class _RoommatePostPageState extends State<RoommatePostPage> {
   final List<String> _selectedAreas = [];
 
   final List<String> _wardOptions = [
-    'Phuong Tan Son Nhi',
-    'Phuong Tay Thanh',
-    'Phuong Son Ky',
-    'Phuong Tan Quy',
-    'Phuong Tan Thanh',
-    'Phuong Phu Tho Hoa',
-    'Phuong Phu Thanh',
-    'Phuong Phu Trung',
-    'Phuong Hoa Thanh',
-    'Phuong Hiep Tan',
-    'Phuong Tan Thoi Hoa',
+    'Phường Tân Sơn Nhì',
+    'Phường Tây Thạnh',
+    'Phường Sơn Kỳ',
+    'Phường Tân Quý',
+    'Phường Tân Thạnh',
+    'Phường Phú Thọ Hòa',
+    'Phường Phú Thạnh',
+    'Phường Phú Trung',
+    'Phường Hòa Thạnh',
+    'Phường Hiệp Tân',
+    'Phường Tân Thới Hòa',
   ];
 
   @override
@@ -69,7 +69,7 @@ class _RoommatePostPageState extends State<RoommatePostPage> {
     final total = _selectedImages.length + images.length;
     if (total > ImageModerationService.maxImages) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Chi duoc chon toi da 10 anh.')),
+        const SnackBar(content: Text('Chỉ được chọn tối đa 10 ảnh.')),
       );
       return;
     }
@@ -89,7 +89,7 @@ class _RoommatePostPageState extends State<RoommatePostPage> {
       final user = FirebaseAuth.instance.currentUser;
       if (user == null) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Ban can dang nhap de dang bai.')),
+          const SnackBar(content: Text('Bạn cần đăng nhập để đăng bài.')),
         );
         return;
       }
@@ -100,7 +100,7 @@ class _RoommatePostPageState extends State<RoommatePostPage> {
       final description = [
         _descriptionController.text.trim(),
         if (_selectedHabits.isNotEmpty)
-          'So thich: ${_selectedHabits.join(', ')}',
+          'Sở thích: ${_selectedHabits.join(', ')}',
       ].join('\n');
 
       final textResult = await _textModerationService.moderateListing(
@@ -111,13 +111,13 @@ class _RoommatePostPageState extends State<RoommatePostPage> {
       if (!textResult.passed) {
         _showViolation(
           textResult.message,
-          'Noi dung co chua tu ngu nhay cam. Vui long chinh sua lai.',
+          'Nội dung có chứa từ ngữ nhạy cảm. Vui lòng chỉnh sửa lại.',
         );
         return;
       }
 
       ModerationResult imageResult = ModerationResult.passed(
-        message: 'Bai dang khong co anh can kiem duyet.',
+        message: 'Bài đăng không có ảnh cần kiểm duyệt.',
         details: const {'source': 'no_images'},
       );
       if (_selectedImages.isNotEmpty) {
@@ -126,7 +126,7 @@ class _RoommatePostPageState extends State<RoommatePostPage> {
         if (!imageResult.passed) {
           _showViolation(
             imageResult.message,
-            'Anh khong hop le. Vui long tai anh khac.',
+            'Ảnh không hợp lệ. Vui lòng tải ảnh khác.',
           );
           return;
         }
@@ -140,7 +140,7 @@ class _RoommatePostPageState extends State<RoommatePostPage> {
             );
 
       final approvedResult = ModerationResult.passed(
-        message: 'Bai dang da duoc kiem duyet va dang cong khai.',
+        message: 'Bài đăng đã được kiểm duyệt và đăng công khai.',
         details: {
           'checkedBy': 'gemini_api',
           'textResult': textResult.toMap(),
@@ -162,14 +162,14 @@ class _RoommatePostPageState extends State<RoommatePostPage> {
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Dang bai thanh cong!')),
+          const SnackBar(content: Text('Đăng bài thành công!')),
         );
         Navigator.of(context).pop();
       }
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Khong the dang bai: $e')),
+          SnackBar(content: Text('Không thể đăng bài: $e')),
         );
       }
     } finally {
@@ -219,12 +219,12 @@ class _RoommatePostPageState extends State<RoommatePostPage> {
 
   String? _validateBudget(String? value) {
     if (value == null || value.trim().isEmpty) {
-      return 'Vui long nhap ngan sach';
+      return 'Vui lòng nhập ngân sách';
     }
     final amount = _parseNumber(value);
-    if (amount <= 0) return 'Ngan sach phai lon hon 0';
+    if (amount <= 0) return 'Ngân sách phải lớn hơn 0';
     if (amount < 1000000) {
-      return 'Ngan sach toi thieu la 1,000,000 VND';
+      return 'Ngân sách tối thiểu là 1.000.000 VND';
     }
     return null;
   }
@@ -240,7 +240,7 @@ class _RoommatePostPageState extends State<RoommatePostPage> {
     return Scaffold(
       appBar: AppBar(
         title: const Text(
-          'Tim ban o ghep',
+          'Tìm bạn ở ghép',
           style: TextStyle(fontWeight: FontWeight.bold),
         ),
       ),
@@ -252,29 +252,29 @@ class _RoommatePostPageState extends State<RoommatePostPage> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               const Text(
-                'Hinh anh thuc te (khong bat buoc)',
+                'Hình ảnh thực tế (không bắt buộc)',
                 style: TextStyle(fontWeight: FontWeight.bold),
               ),
               const SizedBox(height: 10),
               _buildImagePicker(),
               const SizedBox(height: 20),
               const Text(
-                'Tieu de',
+                'Tiêu đề',
                 style: TextStyle(fontWeight: FontWeight.bold),
               ),
               const SizedBox(height: 8),
               TextFormField(
                 controller: _titleController,
                 decoration: const InputDecoration(
-                  hintText: 'Vi du: Tim ban o ghep Le Trong Tan',
+                  hintText: 'Ví dụ: Tìm bạn ở ghép Lê Trọng Tấn',
                   border: OutlineInputBorder(),
                 ),
                 validator: (value) =>
-                    value?.trim().isEmpty ?? true ? 'Nhap tieu de' : null,
+                    value?.trim().isEmpty ?? true ? 'Nhập tiêu đề' : null,
               ),
               const SizedBox(height: 16),
               const Text(
-                'Mo ta chi tiet',
+                'Mô tả chi tiết',
                 style: TextStyle(fontWeight: FontWeight.bold),
               ),
               const SizedBox(height: 8),
@@ -282,15 +282,15 @@ class _RoommatePostPageState extends State<RoommatePostPage> {
                 controller: _descriptionController,
                 maxLines: 4,
                 decoration: const InputDecoration(
-                  hintText: 'Yeu cau ve nguoi o ghep...',
+                  hintText: 'Yêu cầu về người ở ghép...',
                   border: OutlineInputBorder(),
                 ),
                 validator: (value) =>
-                    value?.trim().isEmpty ?? true ? 'Nhap mo ta' : null,
+                    value?.trim().isEmpty ?? true ? 'Nhập mô tả' : null,
               ),
               const SizedBox(height: 16),
               const Text(
-                'Ngan sach ban can co (VND)',
+                'Ngân sách bạn cần có (VND)',
                 style: TextStyle(fontWeight: FontWeight.bold),
               ),
               const SizedBox(height: 8),
@@ -298,7 +298,7 @@ class _RoommatePostPageState extends State<RoommatePostPage> {
                 controller: _budgetController,
                 keyboardType: TextInputType.number,
                 decoration: const InputDecoration(
-                  hintText: 'Nhap so tien',
+                  hintText: 'Nhập số tiền',
                   border: OutlineInputBorder(),
                 ),
                 validator: _validateBudget,
@@ -315,7 +315,7 @@ class _RoommatePostPageState extends State<RoommatePostPage> {
               ),
               const SizedBox(height: 16),
               const Text(
-                'Phuong tai Tan Phu',
+                'Phường tại Tân Phú',
                 style: TextStyle(fontWeight: FontWeight.bold),
               ),
               const SizedBox(height: 8),
@@ -341,7 +341,7 @@ class _RoommatePostPageState extends State<RoommatePostPage> {
               ),
               const SizedBox(height: 16),
               const Text(
-                'So thich o ghep',
+                'Sở thích ở ghép',
                 style: TextStyle(fontWeight: FontWeight.bold),
               ),
               Row(
@@ -350,7 +350,7 @@ class _RoommatePostPageState extends State<RoommatePostPage> {
                     child: TextField(
                       controller: _habitInputController,
                       decoration: const InputDecoration(
-                        hintText: 'Nhap so thich...',
+                        hintText: 'Nhập sở thích...',
                       ),
                     ),
                   ),
@@ -387,7 +387,7 @@ class _RoommatePostPageState extends State<RoommatePostPage> {
                   onPressed: _isLoading ? null : _submitPost,
                   child: _isLoading
                       ? const CircularProgressIndicator(color: Colors.white)
-                      : const Text('DANG BAI'),
+                      : const Text('ĐĂNG BÀI'),
                 ),
               ),
             ],
