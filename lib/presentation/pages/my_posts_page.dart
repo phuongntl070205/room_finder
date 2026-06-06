@@ -11,38 +11,25 @@ class MyPostsPage extends StatelessWidget {
   Widget build(BuildContext context) {
     final currentUser = FirebaseAuth.instance.currentUser;
 
-    return DefaultTabController(
-      length: 3,
-      child: Scaffold(
-        appBar: AppBar(
-          title: const Text('Bài đăng của tôi', style: TextStyle(fontWeight: FontWeight.bold)),
-          bottom: const TabBar(
-            tabs: [
-              Tab(text: 'Đã đăng'),
-              Tab(text: 'Chờ duyệt'),
-              Tab(text: 'Bị từ chối'),
-            ],
-          ),
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text(
+          'Bai dang cua toi',
+          style: TextStyle(fontWeight: FontWeight.bold),
         ),
-        body: currentUser == null
-            ? const Center(child: Text('Vui lòng đăng nhập'))
-            : TabBarView(
-                children: [
-                  _buildPostList(currentUser.uid, ListingStatus.published),
-                  _buildPostList(currentUser.uid, ListingStatus.pending),
-                  _buildPostList(currentUser.uid, ListingStatus.rejected),
-                ],
-              ),
       ),
+      body: currentUser == null
+          ? const Center(child: Text('Vui long dang nhap'))
+          : _buildPostList(currentUser.uid),
     );
   }
 
-  Widget _buildPostList(String userId, ListingStatus status) {
+  Widget _buildPostList(String userId) {
     return StreamBuilder<QuerySnapshot>(
       stream: FirebaseFirestore.instance
           .collection('listings')
           .where('authorId', isEqualTo: userId)
-          .where('status', isEqualTo: status.name)
+          .where('status', isEqualTo: ListingStatus.published.name)
           .snapshots(),
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
@@ -55,7 +42,10 @@ class MyPostsPage extends StatelessWidget {
               children: [
                 Icon(Icons.post_add, size: 64, color: Colors.grey[300]),
                 const SizedBox(height: 16),
-                Text('Không có bài đăng nào ở trạng thái này', style: TextStyle(color: Colors.grey[600])),
+                Text(
+                  'Khong co bai dang nao',
+                  style: TextStyle(color: Colors.grey[600]),
+                ),
               ],
             ),
           );

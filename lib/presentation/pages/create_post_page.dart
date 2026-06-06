@@ -5,6 +5,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:intl/intl.dart';
+import '../../core/moderation/image_moderation_service.dart';
+import '../../core/moderation/moderation_result.dart';
+import '../../core/moderation/text_moderation_service.dart';
 import '../../data/models/listing_model.dart';
 import '../../data/services/location_service.dart';
 import '../../data/services/storage_service.dart';
@@ -31,9 +34,12 @@ class _CreatePostPageState extends State<CreatePostPage> {
   final _otherFeeController = TextEditingController();
 
   final StorageService _storageService = StorageService();
+  final TextModerationService _textModerationService = TextModerationService();
+  final ImageModerationService _imageModerationService =
+      ImageModerationService();
   final ImagePicker _picker = ImagePicker();
 
-  List<File> _selectedImages = [];
+  final List<File> _selectedImages = [];
   final PostType _selectedPostType = PostType.roomForRent;
   GeoPoint? _selectedLocation;
   Map<String, String> _addressComponents = {};
@@ -54,11 +60,20 @@ class _CreatePostPageState extends State<CreatePostPage> {
 
   Future<void> _pickImages() async {
     final List<XFile> images = await _picker.pickMultiImage();
-    if (images.isNotEmpty) {
-      setState(() {
-        _selectedImages.addAll(images.map((e) => File(e.path)).toList());
-      });
+    if (images.isEmpty) return;
+    if (!mounted) return;
+
+    final total = _selectedImages.length + images.length;
+    if (total > ImageModerationService.maxImages) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Chi duoc chon toi da 10 anh.')),
+      );
+      return;
     }
+
+    setState(() {
+      _selectedImages.addAll(images.map((e) => File(e.path)).toList());
+    });
   }
 
   Future<void> _pickLocation() async {
@@ -90,11 +105,48 @@ class _CreatePostPageState extends State<CreatePostPage> {
     }
   }
 
-  Future<void> _submitPost() async {
+  ListingModel _buildPost({
+    required String id,
+    required String authorId,
+    required ResolvedAddress resolvedAddress,
+    required List<String> mediaUrls,
+    required ModerationResult moderationResult,
+  }) {
+    final now = DateTime.now();
+    return ListingModel(
+      id: id,
+      authorId: authorId,
+      postType: _selectedPostType,
+      title: _titleController.text.trim(),
+      description: _descController.text.trim(),
+      price: _parseNumber(_priceController.text),
+      status: ListingStatus.published,
+      location: resolvedAddress.point,
+      address: resolvedAddress.address,
+      addressComponents: resolvedAddress.components,
+      mediaUrls: mediaUrls,
+      createdAt: now,
+      updatedAt: now,
+      moderationComment: null,
+      moderationStatus: ModerationStatus.approved,
+      moderationResult: moderationResult.toMap(),
+      moderationCheckedAt: now,
+      electricPrice: _parseNumber(_electricPriceController.text),
+      waterPrice: _parseNumber(_waterPriceController.text),
+      serviceFee: _parseNumber(_serviceFeeController.text),
+      otherFee: _parseNumber(_otherFeeController.text),
+    );
+  }
+
+  // ignore: unused_element
+  Future<void> _submitPost() => _submitPostModerated();
+
+  Future<void> _submitPostModerated() async {
     if (!_formKey.currentState!.validate()) return;
     if (_selectedImages.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-          content: Text('Cần ít nhất 1 ảnh để bài đăng sinh động hơn!')));
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Can it nhat 1 anh cho bai dang.')),
+      );
       return;
     }
 
@@ -102,56 +154,99 @@ class _CreatePostPageState extends State<CreatePostPage> {
 
     try {
       final user = FirebaseAuth.instance.currentUser;
-      if (user == null) return;
+      if (user == null) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Ban can dang nhap de dang bai.')),
+        );
+        return;
+      }
+
       final resolvedAddress = await _resolveAddressForSubmit();
       if (resolvedAddress == null) {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
-                content: Text(
-                    'Vui lòng chọn vị trí trên bản đồ hoặc nhập địa chỉ hợp lệ')),
+              content: Text('Vui long chon vi tri hoac nhap dia chi hop le.'),
+            ),
           );
         }
         return;
       }
 
       final postRef = FirebaseFirestore.instance.collection('listings').doc();
-      List<String> imageUrls =
+      final textResult = await _textModerationService.moderateListing(
+        title: _titleController.text,
+        description: _descController.text,
+        address: resolvedAddress.address,
+      );
+
+      if (!textResult.passed) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(
+                textResult.message.isEmpty
+                    ? 'Noi dung co chua tu ngu nhay cam. Vui long chinh sua lai.'
+                    : textResult.message,
+              ),
+            ),
+          );
+        }
+        return;
+      }
+
+      final imageResult =
+          await _imageModerationService.moderateImages(_selectedImages);
+      if (!imageResult.passed) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(
+                imageResult.message.isEmpty
+                    ? 'Anh khong hop le. Vui long tai anh khac.'
+                    : imageResult.message,
+              ),
+            ),
+          );
+        }
+        return;
+      }
+
+      final imageUrls =
           await _storageService.uploadPostImages(postRef.id, _selectedImages);
       _addressComponents = resolvedAddress.components;
 
-      final newPost = ListingModel(
+      final approvedResult = ModerationResult.passed(
+        message: 'Bai dang da duoc kiem duyet va dang cong khai.',
+        details: {
+          'checkedBy': 'gemini_api',
+          'textResult': textResult.toMap(),
+          'imageResult': imageResult.toMap(),
+        },
+      );
+
+      final newPost = _buildPost(
         id: postRef.id,
         authorId: user.uid,
-        postType: _selectedPostType,
-        title: _titleController.text.trim(),
-        description: _descController.text.trim(),
-        price: _parseNumber(_priceController.text),
-        status: ListingStatus.pending,
-        location: resolvedAddress.point,
-        address: resolvedAddress.address,
-        addressComponents: _addressComponents,
+        resolvedAddress: resolvedAddress,
         mediaUrls: imageUrls,
-        createdAt: DateTime.now(),
-        electricPrice: _parseNumber(_electricPriceController.text),
-        waterPrice: _parseNumber(_waterPriceController.text),
-        serviceFee: _parseNumber(_serviceFeeController.text),
-        otherFee: _parseNumber(_otherFeeController.text),
+        moderationResult: approvedResult,
       );
 
       await postRef.set(newPost.toMap());
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-              content: Text('Đăng bài thành công! Vui lòng chờ Admin duyệt.')),
+          const SnackBar(content: Text('Dang bai thanh cong!')),
         );
         Navigator.pop(context);
       }
     } catch (e) {
-      if (mounted)
-        ScaffoldMessenger.of(context)
-            .showSnackBar(SnackBar(content: Text('Lỗi: $e')));
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Khong the dang bai: $e')),
+        );
+      }
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }
@@ -192,7 +287,10 @@ class _CreatePostPageState extends State<CreatePostPage> {
                         maxLines: 3),
                     const SizedBox(height: 12),
                     _buildTextField(_priceController, 'Giá thuê / tháng',
-                        keyboardType: TextInputType.number),
+                        keyboardType: TextInputType.number,
+                        minValue: 1000000,
+                        minValueMessage:
+                            'Gia phong toi thieu la 1,000,000 VND'),
                     const SizedBox(height: 12),
                     _buildTextField(_addressController, 'Địa chỉ',
                         icon: Icons.location_on, maxLines: 2),
@@ -239,7 +337,7 @@ class _CreatePostPageState extends State<CreatePostPage> {
                     ),
                     const SizedBox(height: 40),
                     ElevatedButton(
-                      onPressed: _submitPost,
+                      onPressed: _submitPostModerated,
                       style: ElevatedButton.styleFrom(
                         minimumSize: const Size(double.infinity, 55),
                         backgroundColor: Colors.blue[800],
@@ -270,7 +368,9 @@ class _CreatePostPageState extends State<CreatePostPage> {
   Widget _buildTextField(TextEditingController controller, String label,
       {int maxLines = 1,
       TextInputType keyboardType = TextInputType.text,
-      IconData? icon}) {
+      IconData? icon,
+      double? minValue,
+      String? minValueMessage}) {
     return TextFormField(
       controller: controller,
       maxLines: maxLines,
@@ -294,6 +394,9 @@ class _CreatePostPageState extends State<CreatePostPage> {
         if (keyboardType == TextInputType.number) {
           final number = double.tryParse(value.replaceAll(',', ''));
           if (number == null) return 'Vui lòng nhập số hợp lệ';
+          if (minValue != null && number < minValue) {
+            return minValueMessage ?? 'Gia tri khong hop le';
+          }
           if (number < 0) return 'Không được nhập số âm';
         }
         return null;
@@ -325,10 +428,34 @@ class _CreatePostPageState extends State<CreatePostPage> {
           }
           return Padding(
             padding: const EdgeInsets.only(right: 8.0),
-            child: ClipRRect(
-              borderRadius: BorderRadius.circular(12),
-              child: Image.file(_selectedImages[index],
-                  width: 100, height: 100, fit: BoxFit.cover),
+            child: Stack(
+              children: [
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(12),
+                  child: Image.file(_selectedImages[index],
+                      width: 100, height: 100, fit: BoxFit.cover),
+                ),
+                Positioned(
+                  right: 4,
+                  top: 4,
+                  child: GestureDetector(
+                    onTap: () =>
+                        setState(() => _selectedImages.removeAt(index)),
+                    child: Container(
+                      padding: const EdgeInsets.all(4),
+                      decoration: const BoxDecoration(
+                        color: Colors.black54,
+                        shape: BoxShape.circle,
+                      ),
+                      child: const Icon(
+                        Icons.close,
+                        size: 16,
+                        color: Colors.white,
+                      ),
+                    ),
+                  ),
+                ),
+              ],
             ),
           );
         },
@@ -353,7 +480,7 @@ class _CreatePostPageState extends State<CreatePostPage> {
       title: _titleController.text.trim(),
       description: _descController.text.trim(),
       price: _parseNumber(_priceController.text),
-      status: ListingStatus.pending,
+      status: ListingStatus.published,
       location: _selectedLocation ?? const GeoPoint(0, 0),
       address: _addressController.text.trim(),
       addressComponents: _addressComponents,

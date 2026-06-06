@@ -1,29 +1,53 @@
 import 'dart:io';
+
 import 'package:firebase_storage/firebase_storage.dart';
-import 'package:path/path.dart' as path;
 
 class StorageService {
   final FirebaseStorage _storage = FirebaseStorage.instance;
 
-  // Upload danh sách hình ảnh và trả về danh sách URL
-  Future<List<String>> uploadPostImages(String postId, List<File> images) async {
-    List<String> imageUrls = [];
-    
-    for (int i = 0; i < images.length; i++) {
+  Future<List<String>> uploadPostImages(
+      String postId, List<File> images) async {
+    final imageUrls = <String>[];
+
+    for (var i = 0; i < images.length; i++) {
       try {
-        String fileName = 'image_${i}_${DateTime.now().millisecondsSinceEpoch}${path.extension(images[i].path)}';
-        Reference ref = _storage.ref().child('posts').child(postId).child(fileName);
-        
-        // Thêm metadata để Rules có thể kiểm tra (nếu cần)
-        UploadTask uploadTask = ref.putFile(images[i]);
-        TaskSnapshot snapshot = await uploadTask;
-        String downloadUrl = await snapshot.ref.getDownloadURL();
+        final extension = _extension(images[i].path);
+        final fileName =
+            'image_${i}_${DateTime.now().millisecondsSinceEpoch}$extension';
+        final ref = _storage.ref().child('posts').child(postId).child(fileName);
+
+        final uploadTask = ref.putFile(
+          images[i],
+          SettableMetadata(contentType: _contentType(extension)),
+        );
+        final snapshot = await uploadTask;
+        final downloadUrl = await snapshot.ref.getDownloadURL();
         imageUrls.add(downloadUrl);
       } catch (e) {
-        print('Lỗi upload ảnh $i: $e');
+        throw Exception('Khong the upload anh ${i + 1}: $e');
       }
     }
-    
+
     return imageUrls;
+  }
+
+  String _extension(String filePath) {
+    final normalized = filePath.replaceAll('\\', '/');
+    final fileName = normalized.split('/').last.toLowerCase();
+    final dotIndex = fileName.lastIndexOf('.');
+    return dotIndex == -1 ? '.jpg' : fileName.substring(dotIndex);
+  }
+
+  String _contentType(String extension) {
+    switch (extension.toLowerCase()) {
+      case '.png':
+        return 'image/png';
+      case '.webp':
+        return 'image/webp';
+      case '.jpg':
+      case '.jpeg':
+      default:
+        return 'image/jpeg';
+    }
   }
 }

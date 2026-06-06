@@ -6,29 +6,35 @@ class HelpPage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Trợ giúp & Hỗ trợ', style: TextStyle(fontWeight: FontWeight.bold))),
+      appBar: AppBar(
+          title: const Text('Trợ giúp & Hỗ trợ',
+              style: TextStyle(fontWeight: FontWeight.bold))),
       body: ListView(
         padding: const EdgeInsets.all(16),
         children: const [
           _HelpItem(
             icon: Icons.search,
             title: 'Tìm phòng',
-            body: 'Nhập khu vực, địa chỉ hoặc địa danh ở tab Khám phá để lọc bài đăng phù hợp.',
+            body:
+                'Nhập khu vực, địa chỉ hoặc địa danh ở tab Khám phá để lọc bài đăng phù hợp.',
           ),
           _HelpItem(
             icon: Icons.map_outlined,
             title: 'Xem bản đồ',
-            body: 'Dùng chế độ bản đồ để xem vị trí phòng, khoảng cách và mở chỉ đường bằng Google Maps.',
+            body:
+                'Dùng chế độ bản đồ để xem vị trí phòng, khoảng cách và mở chỉ đường bằng Google Maps.',
           ),
           _HelpItem(
             icon: Icons.chat_bubble_outline,
             title: 'Liên hệ',
-            body: 'Mở chi tiết bài đăng rồi nhắn tin cho chủ bài. Nếu đó là bài của bạn, app sẽ hiển thị nút chỉnh sửa.',
+            body:
+                'Mở chi tiết bài đăng rồi nhắn tin cho chủ bài. Nếu đó là bài của bạn, app sẽ hiển thị nút chỉnh sửa.',
           ),
           _HelpItem(
             icon: Icons.verified_outlined,
-            title: 'Duyệt bài',
-            body: 'Bài đăng mới hoặc bài vừa chỉnh sửa sẽ chờ admin duyệt trước khi xuất hiện công khai.',
+            title: 'Tu kiem duyet',
+            body:
+                'Bai dang moi se duoc he thong tu kiem duyet. Neu hop le, bai se hien thi cong khai ngay.',
           ),
         ],
       ),

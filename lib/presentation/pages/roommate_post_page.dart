@@ -1,9 +1,14 @@
 import 'dart:io';
+
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:intl/intl.dart';
+
+import '../../core/moderation/image_moderation_service.dart';
+import '../../core/moderation/moderation_result.dart';
+import '../../core/moderation/text_moderation_service.dart';
 import '../../data/models/listing_model.dart';
 import '../../data/services/post_service.dart';
 import '../../data/services/storage_service.dart';
@@ -23,18 +28,28 @@ class _RoommatePostPageState extends State<RoommatePostPage> {
   final _habitInputController = TextEditingController();
 
   final StorageService _storageService = StorageService();
+  final TextModerationService _textModerationService = TextModerationService();
+  final ImageModerationService _imageModerationService =
+      ImageModerationService();
   final ImagePicker _picker = ImagePicker();
-  List<File> _selectedImages = [];
+  final List<File> _selectedImages = [];
 
   bool _isLoading = false;
-  List<String> _selectedHabits = [];
-  List<String> _selectedAreas = [];
+  final List<String> _selectedHabits = [];
+  final List<String> _selectedAreas = [];
 
   final List<String> _wardOptions = [
-    'Phường Tân Sơn Nhì', 'Phường Tây Thạnh', 'Phường Sơn Kỳ',
-    'Phường Tân Quý', 'Phường Tân Thành', 'Phường Phú Thọ Hòa',
-    'Phường Phú Thạnh', 'Phường Phú Trung', 'Phường Hòa Thạnh',
-    'Phường Hiệp Tân', 'Phường Tân Thới Hòa'
+    'Phuong Tan Son Nhi',
+    'Phuong Tay Thanh',
+    'Phuong Son Ky',
+    'Phuong Tan Quy',
+    'Phuong Tan Thanh',
+    'Phuong Phu Tho Hoa',
+    'Phuong Phu Thanh',
+    'Phuong Phu Trung',
+    'Phuong Hoa Thanh',
+    'Phuong Hiep Tan',
+    'Phuong Tan Thoi Hoa',
   ];
 
   @override
@@ -47,59 +62,188 @@ class _RoommatePostPageState extends State<RoommatePostPage> {
   }
 
   Future<void> _pickImages() async {
-    final List<XFile> images = await _picker.pickMultiImage();
-    if (images.isNotEmpty) {
-      setState(() {
-        _selectedImages.addAll(images.map((e) => File(e.path)).toList());
-      });
+    final images = await _picker.pickMultiImage();
+    if (images.isEmpty) return;
+    if (!mounted) return;
+
+    final total = _selectedImages.length + images.length;
+    if (total > ImageModerationService.maxImages) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Chi duoc chon toi da 10 anh.')),
+      );
+      return;
     }
+
+    setState(() {
+      _selectedImages.addAll(images.map((image) => File(image.path)));
+    });
   }
 
-  Future<void> _submitPost() async {
-    if (!_formKey.currentState!.validate()) return;
-    setState(() => _isLoading = true);
+  Future<void> _submitPost() => _submitPostModerated();
 
+  Future<void> _submitPostModerated() async {
+    if (!_formKey.currentState!.validate()) return;
+
+    setState(() => _isLoading = true);
     try {
       final user = FirebaseAuth.instance.currentUser;
-      if (user == null) throw Exception('Chưa đăng nhập');
-
-      final postRef = FirebaseFirestore.instance.collection('listings').doc();
-      List<String> imageUrls = [];
-      if (_selectedImages.isNotEmpty) {
-        imageUrls = await _storageService.uploadPostImages(postRef.id, _selectedImages);
+      if (user == null) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Ban can dang nhap de dang bai.')),
+        );
+        return;
       }
 
-      final post = ListingModel(
-        id: postRef.id,
-        authorId: user.uid,
-        postType: PostType.roommateWanted,
-        title: _titleController.text.trim(),
-        description: _descriptionController.text.trim(),
-        price: double.tryParse(_budgetController.text.replaceAll(',', '')) ?? 0,
-        status: ListingStatus.pending,
-        location: const GeoPoint(0, 0),
-        address: _selectedAreas.join(', '),
-        mediaUrls: imageUrls,
-        createdAt: DateTime.now(),
-        electricPrice: 0, waterPrice: 0, serviceFee: 0, otherFee: 0,
+      final postRef = FirebaseFirestore.instance.collection('listings').doc();
+      final title = _titleController.text.trim();
+      final address = _selectedAreas.join(', ');
+      final description = [
+        _descriptionController.text.trim(),
+        if (_selectedHabits.isNotEmpty)
+          'So thich: ${_selectedHabits.join(', ')}',
+      ].join('\n');
+
+      final textResult = await _textModerationService.moderateListing(
+        title: title,
+        description: description,
+        address: address,
+      );
+      if (!textResult.passed) {
+        _showViolation(
+          textResult.message,
+          'Noi dung co chua tu ngu nhay cam. Vui long chinh sua lai.',
+        );
+        return;
+      }
+
+      ModerationResult imageResult = ModerationResult.passed(
+        message: 'Bai dang khong co anh can kiem duyet.',
+        details: const {'source': 'no_images'},
+      );
+      if (_selectedImages.isNotEmpty) {
+        imageResult =
+            await _imageModerationService.moderateImages(_selectedImages);
+        if (!imageResult.passed) {
+          _showViolation(
+            imageResult.message,
+            'Anh khong hop le. Vui long tai anh khac.',
+          );
+          return;
+        }
+      }
+
+      final imageUrls = _selectedImages.isEmpty
+          ? <String>[]
+          : await _storageService.uploadPostImages(
+              postRef.id,
+              _selectedImages,
+            );
+
+      final approvedResult = ModerationResult.passed(
+        message: 'Bai dang da duoc kiem duyet va dang cong khai.',
+        details: {
+          'checkedBy': 'gemini_api',
+          'textResult': textResult.toMap(),
+          'imageResult': imageResult.toMap(),
+        },
       );
 
-      await PostService().createPost(post);
+      await PostService().createPost(
+        _buildPost(
+          id: postRef.id,
+          authorId: user.uid,
+          title: title,
+          description: description,
+          address: address,
+          mediaUrls: imageUrls,
+          moderationResult: approvedResult,
+        ),
+      );
+
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Đăng bài thành công!')));
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Dang bai thanh cong!')),
+        );
         Navigator.of(context).pop();
       }
     } catch (e) {
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Lỗi: $e')));
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Khong the dang bai: $e')),
+        );
+      }
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }
   }
 
+  ListingModel _buildPost({
+    required String id,
+    required String authorId,
+    required String title,
+    required String description,
+    required String address,
+    required List<String> mediaUrls,
+    required ModerationResult moderationResult,
+  }) {
+    final now = DateTime.now();
+    return ListingModel(
+      id: id,
+      authorId: authorId,
+      postType: PostType.roommateWanted,
+      title: title,
+      description: description,
+      price: _parseNumber(_budgetController.text),
+      status: ListingStatus.published,
+      location: const GeoPoint(0, 0),
+      address: address,
+      mediaUrls: mediaUrls,
+      createdAt: now,
+      updatedAt: now,
+      moderationComment: null,
+      moderationStatus: ModerationStatus.approved,
+      moderationResult: moderationResult.toMap(),
+      moderationCheckedAt: now,
+    );
+  }
+
+  void _showViolation(String message, String fallback) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(message.isEmpty ? fallback : message)),
+    );
+  }
+
+  double _parseNumber(String value) =>
+      double.tryParse(value.replaceAll(',', '').trim()) ?? 0;
+
+  String? _validateBudget(String? value) {
+    if (value == null || value.trim().isEmpty) {
+      return 'Vui long nhap ngan sach';
+    }
+    final amount = _parseNumber(value);
+    if (amount <= 0) return 'Ngan sach phai lon hon 0';
+    if (amount < 1000000) {
+      return 'Ngan sach toi thieu la 1,000,000 VND';
+    }
+    return null;
+  }
+
+  String _formatCurrency(String value) {
+    final clean = value.replaceAll(',', '');
+    if (clean.isEmpty) return '';
+    return NumberFormat('#,###').format(int.tryParse(clean) ?? 0);
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Tìm bạn ở ghép', style: TextStyle(fontWeight: FontWeight.bold))),
+      appBar: AppBar(
+        title: const Text(
+          'Tim ban o ghep',
+          style: TextStyle(fontWeight: FontWeight.bold),
+        ),
+      ),
       body: Form(
         key: _formKey,
         child: SingleChildScrollView(
@@ -107,110 +251,143 @@ class _RoommatePostPageState extends State<RoommatePostPage> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // 1. Hình ảnh thực tế
-              const Text('Hình ảnh thực tế', style: TextStyle(fontWeight: FontWeight.bold)),
+              const Text(
+                'Hinh anh thuc te (khong bat buoc)',
+                style: TextStyle(fontWeight: FontWeight.bold),
+              ),
               const SizedBox(height: 10),
               _buildImagePicker(),
               const SizedBox(height: 20),
-
-              // 2. Tiêu đề
-              const Text('Tiêu đề', style: TextStyle(fontWeight: FontWeight.bold)),
+              const Text(
+                'Tieu de',
+                style: TextStyle(fontWeight: FontWeight.bold),
+              ),
               const SizedBox(height: 8),
               TextFormField(
                 controller: _titleController,
-                decoration: const InputDecoration(hintText: 'Ví dụ: Tìm bạn ở ghép Lê Trọng Tấn', border: OutlineInputBorder()),
-                validator: (v) => v!.isEmpty ? 'Nhập tiêu đề' : null,
+                decoration: const InputDecoration(
+                  hintText: 'Vi du: Tim ban o ghep Le Trong Tan',
+                  border: OutlineInputBorder(),
+                ),
+                validator: (value) =>
+                    value?.trim().isEmpty ?? true ? 'Nhap tieu de' : null,
               ),
               const SizedBox(height: 16),
-
-              // 3. Mô tả
-              const Text('Mô tả chi tiết', style: TextStyle(fontWeight: FontWeight.bold)),
+              const Text(
+                'Mo ta chi tiet',
+                style: TextStyle(fontWeight: FontWeight.bold),
+              ),
               const SizedBox(height: 8),
               TextFormField(
                 controller: _descriptionController,
                 maxLines: 4,
-                decoration: const InputDecoration(hintText: 'Yêu cầu về người ở ghép...', border: OutlineInputBorder()),
-                validator: (v) => v!.isEmpty ? 'Nhập mô tả' : null,
+                decoration: const InputDecoration(
+                  hintText: 'Yeu cau ve nguoi o ghep...',
+                  border: OutlineInputBorder(),
+                ),
+                validator: (value) =>
+                    value?.trim().isEmpty ?? true ? 'Nhap mo ta' : null,
               ),
               const SizedBox(height: 16),
-
-              // 4. Ngân sách
-              const Text('Ngân sách bạn cần có (VNĐ)', style: TextStyle(fontWeight: FontWeight.bold)),
+              const Text(
+                'Ngan sach ban can co (VND)',
+                style: TextStyle(fontWeight: FontWeight.bold),
+              ),
               const SizedBox(height: 8),
               TextFormField(
                 controller: _budgetController,
                 keyboardType: TextInputType.number,
-                decoration: const InputDecoration(hintText: 'Nhập số tiền', border: OutlineInputBorder(), suffixText: ''),
-                validator: (value) {
-                  if (value == null || value.isEmpty) {
-                    return 'Vui lòng nhập ngân sách';
-                  }
-                  // Loại bỏ dấu phẩy để lấy số thực
-                  final amount = double.tryParse(value.replaceAll(',', ''));
-                  if (amount == null) {
-                    return 'Giá trị không hợp lệ';
-                  }
-                  // Kiểm tra điều kiện tối thiểu 1 triệu
-                  if (amount < 1000000) {
-                    return 'Ngân sách tối thiểu phải là 1,000,000 VNĐ';
-                  }
-                  return null;
-                },
-                onChanged: (v) {
-                  final formatted = _formatCurrency(v);
-                  if (formatted != v) {
-                    _budgetController.value = TextEditingValue(text: formatted, selection: TextSelection.collapsed(offset: formatted.length));
+                decoration: const InputDecoration(
+                  hintText: 'Nhap so tien',
+                  border: OutlineInputBorder(),
+                ),
+                validator: _validateBudget,
+                onChanged: (value) {
+                  final formatted = _formatCurrency(value);
+                  if (formatted != value) {
+                    _budgetController.value = TextEditingValue(
+                      text: formatted,
+                      selection:
+                          TextSelection.collapsed(offset: formatted.length),
+                    );
                   }
                 },
               ),
               const SizedBox(height: 16),
-
-              // 5. Phường tại Tân Phú
-              const Text('Phường tại Tân Phú', style: TextStyle(fontWeight: FontWeight.bold)),
+              const Text(
+                'Phuong tai Tan Phu',
+                style: TextStyle(fontWeight: FontWeight.bold),
+              ),
               const SizedBox(height: 8),
               Wrap(
                 spacing: 8,
-                children: _wardOptions.map((ward) => FilterChip(
-                  label: Text(ward),
-                  selected: _selectedAreas.contains(ward),
-                  onSelected: (s) => setState(() => s ? _selectedAreas.add(ward) : _selectedAreas.remove(ward)),
-                )).toList(),
+                children: _wardOptions
+                    .map(
+                      (ward) => FilterChip(
+                        label: Text(ward),
+                        selected: _selectedAreas.contains(ward),
+                        onSelected: (selected) {
+                          setState(() {
+                            if (selected) {
+                              _selectedAreas.add(ward);
+                            } else {
+                              _selectedAreas.remove(ward);
+                            }
+                          });
+                        },
+                      ),
+                    )
+                    .toList(),
               ),
               const SizedBox(height: 16),
-
-              // 6. Sở thích
-              const Text('Sở thích ở ghép', style: TextStyle(fontWeight: FontWeight.bold)),
+              const Text(
+                'So thich o ghep',
+                style: TextStyle(fontWeight: FontWeight.bold),
+              ),
               Row(
                 children: [
                   Expanded(
                     child: TextField(
                       controller: _habitInputController,
-                      decoration: const InputDecoration(hintText: 'Nhập sở thích...'),
+                      decoration: const InputDecoration(
+                        hintText: 'Nhap so thich...',
+                      ),
                     ),
                   ),
-                  IconButton(icon: const Icon(Icons.add), onPressed: () {
-                    if (_habitInputController.text.isNotEmpty) {
+                  IconButton(
+                    icon: const Icon(Icons.add),
+                    onPressed: () {
+                      final habit = _habitInputController.text.trim();
+                      if (habit.isEmpty) return;
                       setState(() {
-                        _selectedHabits.add(_habitInputController.text.trim());
+                        _selectedHabits.add(habit);
                         _habitInputController.clear();
                       });
-                    }
-                  }),
+                    },
+                  ),
                 ],
               ),
               Wrap(
                 spacing: 8,
-                children: _selectedHabits.map((h) => Chip(label: Text(h), onDeleted: () => setState(() => _selectedHabits.remove(h)))).toList(),
+                children: _selectedHabits
+                    .map(
+                      (habit) => Chip(
+                        label: Text(habit),
+                        onDeleted: () =>
+                            setState(() => _selectedHabits.remove(habit)),
+                      ),
+                    )
+                    .toList(),
               ),
               const SizedBox(height: 30),
-
-              // 7. Nút đăng bài
               SizedBox(
                 width: double.infinity,
                 height: 50,
                 child: ElevatedButton(
                   onPressed: _isLoading ? null : _submitPost,
-                  child: _isLoading ? const CircularProgressIndicator(color: Colors.white) : const Text('ĐĂNG BÀI'),
+                  child: _isLoading
+                      ? const CircularProgressIndicator(color: Colors.white)
+                      : const Text('DANG BAI'),
                 ),
               ),
             ],
@@ -220,7 +397,6 @@ class _RoommatePostPageState extends State<RoommatePostPage> {
     );
   }
 
-  // Khung chọn ảnh
   Widget _buildImagePicker() {
     return SizedBox(
       height: 100,
@@ -233,26 +409,57 @@ class _RoommatePostPageState extends State<RoommatePostPage> {
               onTap: _pickImages,
               child: Container(
                 width: 100,
-                decoration: BoxDecoration(color: Colors.grey[100], borderRadius: BorderRadius.circular(12), border: Border.all(color: Colors.grey[300]!)),
-                child: const Icon(Icons.add_a_photo_outlined, color: Colors.grey, size: 30),
+                decoration: BoxDecoration(
+                  color: Colors.grey[100],
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: Colors.grey[300]!),
+                ),
+                child: const Icon(
+                  Icons.add_a_photo_outlined,
+                  color: Colors.grey,
+                  size: 30,
+                ),
               ),
             );
           }
           return Padding(
-            padding: const EdgeInsets.only(right: 8.0),
-            child: ClipRRect(
-              borderRadius: BorderRadius.circular(12),
-              child: Image.file(_selectedImages[index], width: 100, height: 100, fit: BoxFit.cover),
+            padding: const EdgeInsets.only(right: 8),
+            child: Stack(
+              children: [
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(12),
+                  child: Image.file(
+                    _selectedImages[index],
+                    width: 100,
+                    height: 100,
+                    fit: BoxFit.cover,
+                  ),
+                ),
+                Positioned(
+                  right: 4,
+                  top: 4,
+                  child: GestureDetector(
+                    onTap: () =>
+                        setState(() => _selectedImages.removeAt(index)),
+                    child: Container(
+                      padding: const EdgeInsets.all(4),
+                      decoration: const BoxDecoration(
+                        color: Colors.black54,
+                        shape: BoxShape.circle,
+                      ),
+                      child: const Icon(
+                        Icons.close,
+                        size: 16,
+                        color: Colors.white,
+                      ),
+                    ),
+                  ),
+                ),
+              ],
             ),
           );
         },
       ),
     );
-  }
-
-  String _formatCurrency(String value) {
-    final clean = value.replaceAll(',', '');
-    if (clean.isEmpty) return '';
-    return NumberFormat('#,###').format(int.tryParse(clean) ?? 0);
   }
 }

@@ -4,6 +4,8 @@ enum ListingStatus { pending, published, rejected, closed }
 
 enum PostType { roomForRent, roommateWanted }
 
+enum ModerationStatus { pendingCheck, approved, rejected }
+
 class ListingModel {
   final String id;
   final String authorId;
@@ -17,7 +19,11 @@ class ListingModel {
   final Map<String, String> addressComponents;
   final List<String> mediaUrls;
   final DateTime createdAt;
+  final DateTime? updatedAt;
   final String? moderationComment;
+  final ModerationStatus? moderationStatus;
+  final Map<String, dynamic> moderationResult;
+  final DateTime? moderationCheckedAt;
   final Map<String, bool> amenities;
 
   // Monthly cost estimation fields
@@ -43,7 +49,11 @@ class ListingModel {
     this.addressComponents = const {},
     this.mediaUrls = const [],
     required this.createdAt,
+    this.updatedAt,
     this.moderationComment,
+    this.moderationStatus,
+    this.moderationResult = const {},
+    this.moderationCheckedAt,
     this.amenities = const {},
     this.electricPrice = 0,
     this.waterPrice = 0,
@@ -86,7 +96,12 @@ class ListingModel {
           Map<String, String>.from(map['addressComponents'] ?? {}),
       mediaUrls: List<String>.from(map['mediaUrls'] ?? []),
       createdAt: (map['createdAt'] as Timestamp?)?.toDate() ?? DateTime.now(),
+      updatedAt: (map['updatedAt'] as Timestamp?)?.toDate(),
       moderationComment: map['moderationComment'],
+      moderationStatus: _moderationStatusFromMap(map['moderationStatus']),
+      moderationResult:
+          Map<String, dynamic>.from(map['moderationResult'] ?? {}),
+      moderationCheckedAt: (map['moderationCheckedAt'] as Timestamp?)?.toDate(),
       amenities: Map<String, bool>.from(map['amenities'] ?? {}),
       electricPrice: (map['electricPrice'] ?? 0).toDouble(),
       waterPrice: (map['waterPrice'] ?? 0).toDouble(),
@@ -109,7 +124,13 @@ class ListingModel {
         'addressComponents': addressComponents,
         'mediaUrls': mediaUrls,
         'createdAt': Timestamp.fromDate(createdAt),
+        if (updatedAt != null) 'updatedAt': Timestamp.fromDate(updatedAt!),
         'moderationComment': moderationComment,
+        if (moderationStatus != null)
+          'moderationStatus': moderationStatus!.firestoreValue,
+        if (moderationResult.isNotEmpty) 'moderationResult': moderationResult,
+        if (moderationCheckedAt != null)
+          'moderationCheckedAt': Timestamp.fromDate(moderationCheckedAt!),
         'amenities': amenities,
         'electricPrice': electricPrice,
         'waterPrice': waterPrice,
@@ -118,4 +139,25 @@ class ListingModel {
         'defaultElectricUsage': defaultElectricUsage,
         'defaultWaterUsage': defaultWaterUsage,
       };
+
+  static ModerationStatus? _moderationStatusFromMap(dynamic value) {
+    if (value == null) return null;
+    return ModerationStatus.values.firstWhere(
+      (status) => status.firestoreValue == value,
+      orElse: () => ModerationStatus.pendingCheck,
+    );
+  }
+}
+
+extension ModerationStatusX on ModerationStatus {
+  String get firestoreValue {
+    switch (this) {
+      case ModerationStatus.pendingCheck:
+        return 'pending_check';
+      case ModerationStatus.approved:
+        return 'approved';
+      case ModerationStatus.rejected:
+        return 'rejected';
+    }
+  }
 }
