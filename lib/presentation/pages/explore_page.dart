@@ -9,7 +9,6 @@ import '../../data/services/location_service.dart';
 import '../../data/services/user_service.dart';
 import '../widgets/post_card.dart';
 import '../widgets/roommate_card.dart';
-import 'map_explorer_page.dart';
 import 'user_profile_page.dart';
 
 class ExplorePage extends StatefulWidget {
@@ -31,7 +30,6 @@ class _ExplorePageState extends State<ExplorePage>
   Timer? _searchDebounce;
   RangeValues _priceRange = const RangeValues(0, 20000000);
   String _selectedRoomType = 'Tất cả';
-  bool _isMapView = false;
 
   @override
   void initState() {
@@ -141,19 +139,6 @@ class _ExplorePageState extends State<ExplorePage>
         backgroundColor: Colors.white,
         title: _buildSearchField(),
         actions: [
-          ToggleButtons(
-            isSelected: [!_isMapView, _isMapView],
-            onPressed: (index) => setState(() => _isMapView = index == 1),
-            borderRadius: BorderRadius.circular(8),
-            children: const [
-              Padding(
-                  padding: EdgeInsets.symmetric(horizontal: 12),
-                  child: Icon(Icons.list)),
-              Padding(
-                  padding: EdgeInsets.symmetric(horizontal: 12),
-                  child: Icon(Icons.map)),
-            ],
-          ),
           IconButton(
             icon: const Icon(Icons.filter_list),
             onPressed: _showFilterSheet,
@@ -170,16 +155,13 @@ class _ExplorePageState extends State<ExplorePage>
           ],
         ),
       ),
-      body: _isMapView
-          ? MapExplorerPage(
-              searchQuery: _searchQuery, searchLocation: _searchLocation)
-          : TabBarView(
-              controller: _tabController,
-              children: [
-                _buildRoomSearchTab(),
-                _buildRoommateMatchingTab(),
-              ],
-            ),
+      body: TabBarView(
+        controller: _tabController,
+        children: [
+          _buildRoomSearchTab(),
+          _buildRoommateMatchingTab(),
+        ],
+      ),
     );
   }
 
@@ -205,56 +187,86 @@ class _ExplorePageState extends State<ExplorePage>
   }
 
   Widget _buildRoomSearchTab() {
-    return StreamBuilder<QuerySnapshot>(
-      stream: FirebaseFirestore.instance
-          .collection('listings')
-          .where('status', isEqualTo: 'published')
-          .snapshots(),
-      builder: (context, snapshot) {
-        if (!snapshot.hasData)
-          return const Center(child: CircularProgressIndicator());
+    return Column(
+      children: [
+        Padding(
+          padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  const Text('Lọc theo giá', style: TextStyle(fontWeight: FontWeight.bold)),
+                  Text(
+                    '${_formatPrice(_priceRange.start)} – ${_formatPrice(_priceRange.end)}',
+                    style: TextStyle(color: Colors.blue[800], fontSize: 13),
+                  ),
+                ],
+              ),
+              RangeSlider(
+                values: _priceRange,
+                min: 0,
+                max: 20000000,
+                divisions: 20,
+                onChanged: (val) => setState(() => _priceRange = val),
+              ),
+            ],
+          ),
+        ),
+        const Divider(height: 1),
+        Expanded(
+          child: StreamBuilder<QuerySnapshot>(
+            stream: FirebaseFirestore.instance
+                .collection('listings')
+                .where('status', isEqualTo: 'published')
+                .snapshots(),
+            builder: (context, snapshot) {
+              if (!snapshot.hasData)
+                return const Center(child: CircularProgressIndicator());
 
-        final posts = snapshot.data!.docs
-            .map((doc) => ListingModel.fromMap(
-                doc.data() as Map<String, dynamic>, doc.id))
-            .where((post) {
-          final normalizedQuery = _searchQuery.trim().toLowerCase();
-          final searchableText = [
-            post.title,
-            post.address,
-            post.description,
-            post.postType == PostType.roomForRent
-                ? 'phòng trọ cho thuê'
-                : 'tìm bạn ở ghép',
-          ].join(' ').toLowerCase();
-          final matchText = normalizedQuery.isEmpty ||
-              searchableText.contains(normalizedQuery);
-          final matchLocation = _searchLocation == null
-              ? false
-              : Geolocator.distanceBetween(
-                    _searchLocation!.latitude,
-                    _searchLocation!.longitude,
-                    post.location.latitude,
-                    post.location.longitude,
-                  ) <=
-                  7000;
-          final matchSearch =
-              normalizedQuery.isEmpty || matchText || matchLocation;
-          final matchPrice =
-              post.price >= _priceRange.start && post.price <= _priceRange.end;
-          return matchSearch && matchPrice;
-        }).toList();
+              final posts = snapshot.data!.docs
+                  .map((doc) => ListingModel.fromMap(
+                  doc.data() as Map<String, dynamic>, doc.id))
+                  .where((post) {
+                final normalizedQuery = _searchQuery.trim().toLowerCase();
+                final searchableText = [
+                  post.title, post.address, post.description,
+                  post.postType == PostType.roomForRent ? 'phòng trọ cho thuê' : 'tìm bạn ở ghép',
+                ].join(' ').toLowerCase();
+                final matchText = normalizedQuery.isEmpty || searchableText.contains(normalizedQuery);
+                final matchLocation = _searchLocation == null
+                    ? false
+                    : Geolocator.distanceBetween(
+                  _searchLocation!.latitude, _searchLocation!.longitude,
+                  post.location.latitude, post.location.longitude,
+                ) <= 7000;
+                final matchSearch = normalizedQuery.isEmpty || matchText || matchLocation;
+                final matchPrice = post.price >= _priceRange.start && post.price <= _priceRange.end;
+                return matchSearch && matchPrice;
+              }).toList();
 
-        if (posts.isEmpty)
-          return const Center(child: Text('Không tìm thấy kết quả phù hợp.'));
+              if (posts.isEmpty)
+                return const Center(child: Text('Không tìm thấy kết quả phù hợp.'));
 
-        return ListView.builder(
-          padding: const EdgeInsets.symmetric(vertical: 8),
-          itemCount: posts.length,
-          itemBuilder: (context, index) => PostCard(post: posts[index]),
-        );
-      },
+              return ListView.builder(
+                padding: const EdgeInsets.symmetric(vertical: 8),
+                itemCount: posts.length,
+                itemBuilder: (context, index) => PostCard(post: posts[index]),
+              );
+            },
+          ),
+        ),
+      ],
     );
+  }
+
+  String _formatPrice(double value) {
+    if (value >= 1000000) {
+      final m = value / 1000000;
+      return '${m.toStringAsFixed(m >= 10 ? 0 : 1)}tr';
+    }
+    return '${value.round()}đ';
   }
 
   Widget _buildRoommateMatchingTab() {
