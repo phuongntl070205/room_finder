@@ -1,0 +1,62 @@
+{
+  "project_info": {
+    "project_number": "812772563894",
+    "project_id": "roomfinder-1b0e2",
+    "storage_bucket": "roomfinder-1b0e2.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:812772563894:android:cef3d14293048f01a8ff17",
+        "android_client_info": {
+          "package_name": "com.ngocvy.room_finder"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "812772563894-k3l2tqmupc87rsrqbf1ekkd143qgvpd4.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.ngocvy.room_finder",
+            "certificate_hash": "1c332666001fc4c66fe37e46d5e8aaf651ca4305"
+          }
+        },
+        {
+          "client_id": "812772563894-vha0ushrh4tf6gr76os9ebr78lp5tuc1.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.ngocvy.room_finder",
+            "certificate_hash": "d396b75d27a8f979caede1c62805d2462695404a"
+          }
+        },
+        {
+          "client_id": "812772563894-33f1fob1dk5lr75nnf1lhr5k37bkcd6e.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAsdutmiQpgU_E0S-G2PLE2gV4Y8mI8Fcc"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "812772563894-33f1fob1dk5lr75nnf1lhr5k37bkcd6e.apps.googleusercontent.com",
+              "client_type": 3
+            },
+            {
+              "client_id": "812772563894-3616o3juldch22fe0hqp1bdhh52vc43o.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "com.ngocvy.roomFinder"
+              }
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

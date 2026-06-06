@@ -1,0 +1,27 @@
+mutation CreateDemoData @transaction {
+  user_insertMany(data: [
+    {
+      id: "550e8400-e29b-41d4-a716-446655440000",
+      email: "landlord@example.com",
+      name: "Landlord User",
+      role: "LANDLORD"
+    },
+    {
+      id: "550e8400-e29b-41d4-a716-446655440001",
+      email: "renter@example.com",
+      name: "Renter User",
+      role: "RENTER"
+    }
+  ])
+  room_insertMany(data: [
+    {
+      id: "b21a8400-e29b-41d4-a716-446655440000",
+      title: "Cozy Studio",
+      price: 1200.0,
+      location: "Downtown",
+      description: "A nice studio in the city center.",
+      status: "AVAILABLE",
+      landlord: { id: "550e8400-e29b-41d4-a716-446655440000" }
+    }
+  ])
+}

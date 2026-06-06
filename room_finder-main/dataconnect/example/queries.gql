@@ -1,0 +1,29 @@
+mutation CreateRoom($title: String!, $price: Float!, $location: String!, $description: String!, $status: String!) @auth(level: USER) {
+  room_insert(data: {
+    title: $title,
+    price: $price,
+    location: $location,
+    description: $description,
+    status: $status,
+    landlordId_expr: "auth.uid"
+  })
+}
+
+mutation UpdateRoomStatus($id: UUID!, $status: String!) @auth(level: USER) {
+  room_update(id: $id, data: { status: $status })
+}
+
+query ListRooms @auth(level: PUBLIC) {
+  rooms {
+    title
+    price
+    location
+    landlord {
+      name
+    }
+  }
+}
+
+mutation DeleteRoom($id: UUID!) @auth(level: USER) {
+  room_delete(id: $id)
+}

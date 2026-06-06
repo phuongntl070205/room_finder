@@ -1,0 +1,41 @@
+type User @table {
+  email: String!
+  name: String!
+  role: String!
+  phoneNumber: String
+  profileImageUrl: String
+}
+
+type Room @table {
+  title: String!
+  price: Float!
+  location: String!
+  description: String!
+  status: String!
+  squareFootage: Int
+  imageUrls: [String]
+  amenities: [String]
+  landlord: User!
+}
+
+type Booking @table {
+  room: Room!
+  renter: User!
+  status: String!
+  startDate: Date
+  endDate: Date
+}
+
+type Message @table {
+  room: Room!
+  sender: User!
+  content: String!
+  timestamp: Timestamp!
+}
+
+type ModerationLog @table {
+  room: Room!
+  isFlagged: Boolean!
+  aiRecommendation: String!
+  status: String!
+}
